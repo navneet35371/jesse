@@ -297,6 +297,34 @@ exchange_info = {
             'live_trading': True,
         },
         'required_live_plan': 'premium'
+    },
+
+    exchanges_enums.UPSTOX_SPOT: {
+        'name': exchanges_enums.UPSTOX_SPOT,
+        'url': 'https://trade.stage.dydx.exchange/trade/ETH-USD',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': DYDX_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
+    },
+
+    exchanges_enums.KITE_SPOT: {
+        'name': exchanges_enums.KITE_SPOT,
+        'url': 'https://api.kite.trade',
+        'fee': 0.0005,
+        'type': 'futures',
+        'supported_leverage_modes': ['cross'],
+        'supported_timeframes': DYDX_TIMEFRAMES,
+        'modes': {
+            'backtesting': True,
+            'live_trading': True,
+        },
+        'required_live_plan': 'premium'
     }
 }
 
