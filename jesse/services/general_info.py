@@ -32,12 +32,9 @@ def get_general_info(has_live=False) -> dict:
                 raise Exception(
                     f"{response.status_code} error: {response.json()['message']}"
                 )
-<<<<<<< Updated upstream
             plan_info = response.json()
+            print(plan_info)
             limits = plan_info['limits']
-=======
-            plan_info = {'plan': 'premium'}
->>>>>>> Stashed changes
 
     strategies_path = os.getcwd() + "/strategies/"
     strategies = list(sorted([name for name in os.listdir(strategies_path) if os.path.isdir(strategies_path + name)]))

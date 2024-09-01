@@ -81,14 +81,10 @@ def run(
     if exchange in [exchanges.KITE_SPOT]:
         loop_length = int(days_count/7) + 1
 
-<<<<<<< Updated upstream
     progressbar = Progressbar(loop_length, step=2)
     for i in range(candles_count):
         temp_start_timestamp = start_date.int_timestamp * 1000
         temp_end_timestamp = temp_start_timestamp + (driver.count - 1) * 60000
-=======
-        progressbar = Progressbar(loop_length)
->>>>>>> Stashed changes
 
         for i in range(loop_length):
             temp_start_timestamp = start_date.int_timestamp * 1000
@@ -111,18 +107,11 @@ def run(
                 if temp_end_timestamp > jh.now_to_timestamp():
                     temp_end_timestamp = arrow.utcnow().floor('minute').int_timestamp * 1000 - 60000
 
-<<<<<<< Updated upstream
             # check if candles have been returned and check those returned start with the right timestamp.
             # Sometimes exchanges just return the earliest possible candles if the start date doesn't exist.
             time_diff = int((candles[0]['timestamp'] - temp_start_timestamp) / 1000) if len(candles) else 0
             if not len(candles) or time_diff < 0 or time_diff > 60*100:
                 first_existing_timestamp = driver.get_starting_time(symbol)
-=======
-                # fetch from market
-                candles = driver.fetch(symbol, temp_start_timestamp, timeframe='1m')
-                # fill absent candles (if there's any)
-                candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
->>>>>>> Stashed changes
 
                 # store in the database
                 store_candles_list(candles)
@@ -196,25 +185,10 @@ def run(
                             )
 
                     else:
-<<<<<<< Updated upstream
                         print(msg)
                     run(client_id, exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode,
                         running_via_dashboard, show_progressbar)
                     return
-=======
-                        temp_start_time = jh.timestamp_to_time(temp_start_timestamp)[:10]
-                        temp_existing_time = jh.timestamp_to_time(first_existing_timestamp)[:10]
-                        msg = f'No candle exists in the market for {temp_start_time}. So Jesse started importing since the first existing date which is {temp_existing_time}'
-                        if running_via_dashboard:
-                            sync_publish('alert', {
-                                'message': msg,
-                                'type': 'success'
-                            })
-                        else:
-                            print(msg)
-                        run(exchange, symbol, jh.timestamp_to_time(first_existing_timestamp)[:10], mode, running_via_dashboard, show_progressbar)
-                        return
->>>>>>> Stashed changes
 
                 # fill absent candles (if there's any)
                 candles = _fill_absent_candles(candles, temp_start_timestamp, temp_end_timestamp)
@@ -225,7 +199,6 @@ def run(
             # add as much as driver's count to the temp_start_time
             start_date = start_date.shift(minutes=driver.count)
 
-<<<<<<< Updated upstream
         if i % 2 == 0:
             progressbar.update()
         if running_via_dashboard:
@@ -237,17 +210,6 @@ def run(
             jh.clear_output()
             print(
                 f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
-=======
-            progressbar.update()
-            if running_via_dashboard:
-                sync_publish('progressbar', {
-                    'current': progressbar.current,
-                    'estimated_remaining_seconds': progressbar.estimated_remaining_seconds
-                })
-            elif show_progressbar:
-                jh.clear_output()
-                print(f"Progress: {progressbar.current}% - {round(progressbar.estimated_remaining_seconds)} seconds remaining")
->>>>>>> Stashed changes
 
             # sleep so that the exchange won't get angry at us
             if not already_exists:

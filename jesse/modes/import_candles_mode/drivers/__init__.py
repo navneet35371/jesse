@@ -19,13 +19,10 @@ from jesse.modes.import_candles_mode.drivers.DyDx.DydxPerpetual import DydxPerpe
 from jesse.modes.import_candles_mode.drivers.DyDx.DydxPerpetualTestnet import DydxPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpotTestnet import BybitSpotTestnet
 from jesse.modes.import_candles_mode.drivers.Bybit.BybitSpot import BybitSpot
-<<<<<<< Updated upstream
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetualTestnet import ApexProPerpetualTestnet
 from jesse.modes.import_candles_mode.drivers.Apex.ApexProPerpetual import ApexProPerpetual
-=======
 from jesse.modes.import_candles_mode.drivers.Upstox.UpstoxSpot import UpstoxSpot
 from jesse.modes.import_candles_mode.drivers.Kite.KiteSpot import KiteSpot
->>>>>>> Stashed changes
 
 
 drivers = {

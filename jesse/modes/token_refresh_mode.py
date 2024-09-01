@@ -16,7 +16,7 @@ from jesse.modes.import_candles_mode.drivers import drivers, driver_names
 from jesse.modes.import_candles_mode.drivers.interface import CandleExchange
 from jesse.config import config
 from jesse.services.failure import register_custom_exception_handler
-from jesse.services.redis import sync_publish, process_status
+from jesse.services.redis import is_process_active, sync_publish
 from jesse.store import store
 from jesse import exceptions
 from jesse.services.progressbar import Progressbar
@@ -33,7 +33,7 @@ def run(
         config['app']['trading_mode'] = mode
 
         # first, create and set session_id
-        store.app.set_session_id()
+        store.app.set_session_id('test')
 
         register_custom_exception_handler()
 
@@ -47,7 +47,7 @@ def run(
 
         @status_checker.job(interval=timedelta(seconds=1))
         def handle_time():
-            if process_status() != 'started':
+            if is_process_active('test') is False:
                 raise exceptions.Termination
 
         status_checker.start()

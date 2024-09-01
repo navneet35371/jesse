@@ -296,7 +296,7 @@ def import_candles(request_json: ImportSymbolRequestJson, authorization: Optiona
 
     from jesse.modes import import_symbols_mode
 
-    process_manager.add_task(import_symbols_mode.run, 'symbols-' + str(request_json.id), request_json.exchange)
+    process_manager.add_task(import_symbols_mode.run, request_json.exchange)
 
     return JSONResponse({'message': 'Started importing symbols...'}, status_code=202)
 
