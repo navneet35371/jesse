@@ -4,6 +4,7 @@ import peewee
 from fastapi.responses import FileResponse
 import jesse.helpers as jh
 from jesse.info import live_trading_exchanges, backtesting_exchanges
+from jesse.models.Symbol import Symbol
 
 
 def get_candles(exchange: str, symbol: str, timeframe: str):
@@ -168,3 +169,28 @@ def download_file(mode: str, file_type: str, session_id: str = None):
         raise Exception(f'Unknown file type: {file_type} or mode: {mode}')
 
     return FileResponse(path=path, filename=filename, media_type='application/octet-stream')
+
+def get_symbols(query: str = None, exchange: str = None):
+    filtered_symbols = Symbol.select().where(
+        (Symbol.jesse_exchange == exchange) &
+        (Symbol.name.contains(query) | Symbol.tradingsymbol.contains(query))
+    ).limit(10)
+    symbols = []
+    for symbol in filtered_symbols:
+        symbols.append({
+            'id' : str(symbol.id),
+            'jesse_exchange': symbol.jesse_exchange,
+            'instrument_token': symbol.instrument_token,
+            'exchange_token': symbol.exchange_token,
+            'tradingsymbol': symbol.tradingsymbol,
+            'name': symbol.name,
+            'last_price': symbol.last_price,
+            'expiry': symbol.expiry,
+            'strike': symbol.strike,
+            'tick_size': symbol.tick_size,
+            'lot_size': symbol.lot_size,
+            'instrument_type': symbol.instrument_type,
+            'segment': symbol.segment,
+            'exchange': symbol.exchange,
+        })
+    return symbols

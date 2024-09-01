@@ -625,7 +625,7 @@ def python_version() -> tuple:
 
 def quote_asset(symbol: str) -> str:
     try:
-        return symbol.split('-')[1]
+        return 'INR'
     except IndexError:
         from jesse.exceptions import InvalidRoutes
         raise InvalidRoutes(f"The symbol format is incorrect. Correct example: 'BTC-USDT'. Yours is '{symbol}'")
@@ -848,6 +848,9 @@ def timestamp_to_date(timestamp: int) -> str:
 
 def timestamp_to_time(timestamp: int) -> str:
     return str(arrow.get(timestamp / 1000))
+
+def timestamp_to_time_kite(timestamp: int) -> str:
+    return str(arrow.get(timestamp/1000).format('YYYY-MM-DD'))
 
 
 def timestamp_to_iso8601(timestamp: int) -> str:

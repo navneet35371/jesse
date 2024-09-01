@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from jesse.services import auth as authenticator
 from jesse.services.multiprocessing import process_manager
 from jesse.services.redis import async_redis, async_publish, sync_publish
-from jesse.services.web import fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
+from jesse.services.web import ImportSymbolRequestJson, RefreshTokenRequestJson, SymbolQueryRequestJson, fastapi_app, BacktestRequestJson, ImportCandlesRequestJson, CancelRequestJson, \
     LoginRequestJson, ConfigRequestJson, LoginJesseTradeRequestJson, NewStrategyRequestJson, FeedbackRequestJson, \
     ReportExceptionRequestJson, OptimizationRequestJson, StoreExchangeApiKeyRequestJson, \
     DeleteExchangeApiKeyRequestJson, StoreNotificationApiKeyRequestJson, DeleteNotificationApiKeyRequestJson, \
@@ -77,6 +77,10 @@ async def shutdown(background_tasks: BackgroundTasks, authorization: Optional[st
 @fastapi_app.post("/auth")
 def auth(json_request: LoginRequestJson):
     return authenticator.password_to_token(json_request.password)
+
+@fastapi_app.get("/currentUser")
+def currentUser():
+    return JSONResponse({"data":{'name': 'Navneet suman'}})
 
 
 @fastapi_app.post("/make-strategy")
@@ -281,6 +285,35 @@ def import_candles(request_json: ImportCandlesRequestJson, authorization: Option
 
     return JSONResponse({'message': 'Started importing candles...'}, status_code=202)
 
+@fastapi_app.post('/import-symbols')
+def import_candles(request_json: ImportSymbolRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    from jesse.services.multiprocessing import process_manager
+
+    validate_cwd()
+
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import import_symbols_mode
+
+    process_manager.add_task(import_symbols_mode.run, 'symbols-' + str(request_json.id), request_json.exchange)
+
+    return JSONResponse({'message': 'Started importing symbols...'}, status_code=202)
+
+@fastapi_app.post('/refresh-token')
+def refresh_tokens(request_json: RefreshTokenRequestJson, authorization: Optional[str] = Header(None)) -> JSONResponse:
+    from jesse.services.multiprocessing import process_manager
+
+    validate_cwd()
+
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import token_refresh_mode
+
+    process_manager.add_task(token_refresh_mode.run, 'tokens-' + str(request_json.id))
+
+    return JSONResponse({'message': 'Started token refresh'}, status_code=202)
 
 @fastapi_app.post("/cancel-import-candles")
 def cancel_import_candles(request_json: CancelRequestJson, authorization: Optional[str] = Header(None)):
@@ -375,6 +408,20 @@ def download(mode: str, file_type: str, session_id: str, token: str = Query(...)
     from jesse.modes import data_provider
 
     return data_provider.download_file(mode, file_type, session_id)
+
+@fastapi_app.post("/symbols")
+def query_symbols( request_json: SymbolQueryRequestJson, authorization: Optional[str] = Header(None)):
+    """
+    Log files require session_id because there is one log per each session. Except for the optimize mode
+    """
+    if not authenticator.is_valid_token(authorization):
+        return authenticator.unauthorized_response()
+
+    from jesse.modes import data_provider
+    arr = data_provider.get_symbols(request_json.query, request_json.exchange)
+    return JSONResponse({
+            'data': arr
+        }, status_code=200)
 
 
 @fastapi_app.get("/download/optimize/log")

@@ -58,6 +58,16 @@ class ImportCandlesRequestJson(BaseModel):
     symbol: str
     start_date: str
 
+class ImportSymbolRequestJson(BaseModel):
+    exchange: str
+    id: str
+
+class RefreshTokenRequestJson(BaseModel):
+    id: str
+
+class SymbolQueryRequestJson(BaseModel):
+    query: str
+    exchange: str
 
 class ExchangeSupportedSymbolsRequestJson(BaseModel):
     exchange: str

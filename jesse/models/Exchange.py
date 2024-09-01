@@ -34,7 +34,7 @@ class Exchange(ABC):
         if self.name in exchange_info and 'settlement_currency' in exchange_info[self.name]:
             self.settlement_currency = exchange_info[self.name]['settlement_currency']
         else:
-            self.settlement_currency = jh.quote_asset(first_route.symbol)
+            self.settlement_currency = 'INR'
 
         # initiate dict keys for trading assets
         for r in all_trading_routes:

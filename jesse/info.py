@@ -346,7 +346,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'guest'
     },
 
     exchanges_enums.KITE_SPOT: {
@@ -360,7 +360,7 @@ exchange_info = {
             'backtesting': True,
             'live_trading': True,
         },
-        'required_live_plan': 'premium'
+        'required_live_plan': 'guest'
     }
 
 }
