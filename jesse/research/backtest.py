@@ -5,7 +5,7 @@ import copy
 def backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         generate_charts: bool = False,
@@ -13,6 +13,7 @@ def backtest(
         generate_quantstats: bool = False,
         generate_hyperparameters: bool = False,
         generate_equity_curve: bool = False,
+        benchmark: bool = False,
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_logs: bool = False,
@@ -38,7 +39,7 @@ def backtest(
     Example `route`:
     [{'exchange': 'Bybit USDT Perpetual', 'strategy': 'A1', 'symbol': 'BTC-USDT', 'timeframe': '1m'}]
 
-    Example `extra_route`:
+    Example `data_route`:
     [{'exchange': 'Bybit USDT Perpetual', 'symbol': 'BTC-USDT', 'timeframe': '3m'}]
 
     Example `candles`:
@@ -53,7 +54,7 @@ def backtest(
     return _isolated_backtest(
         config,
         routes,
-        extra_routes,
+        data_routes,
         candles,
         warmup_candles,
         run_silently=True,
@@ -64,6 +65,7 @@ def backtest(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
+        benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
@@ -73,7 +75,7 @@ def backtest(
 def _isolated_backtest(
         config: dict,
         routes: List[Dict[str, str]],
-        extra_routes: List[Dict[str, str]],
+        data_routes: List[Dict[str, str]],
         candles: dict,
         warmup_candles: dict = None,
         run_silently: bool = True,
@@ -84,6 +86,7 @@ def _isolated_backtest(
         generate_csv: bool = False,
         generate_json: bool = False,
         generate_equity_curve: bool = False,
+        benchmark: bool = False,
         generate_hyperparameters: bool = False,
         generate_logs: bool = False,
         fast_mode: bool = False,
@@ -103,7 +106,7 @@ def _isolated_backtest(
     set_config(_format_config(config))
 
     # set routes
-    router.initiate(routes, extra_routes)
+    router.initiate(routes, data_routes)
 
     validate_routes(router)
     # TODO: further validate routes and allow only one exchange
@@ -150,6 +153,7 @@ def _isolated_backtest(
         generate_csv=generate_csv,
         generate_json=generate_json,
         generate_equity_curve=generate_equity_curve,
+        benchmark=benchmark,
         generate_hyperparameters=generate_hyperparameters,
         generate_logs=generate_logs,
         fast_mode=fast_mode,
