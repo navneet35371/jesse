@@ -1,6 +1,8 @@
 import hashlib
 import math
 import os
+import gzip
+import json
 from functools import lru_cache
 import random
 import string
@@ -10,7 +12,6 @@ from typing import List, Tuple, Union, Any, Optional
 from pprint import pprint
 import arrow
 import click
-import numpy
 import numpy as np
 
 CACHED_CONFIG = dict()
@@ -132,8 +133,10 @@ def dashy_symbol(symbol: str) -> str:
         return symbol[:-3] + '-MIM'
     if symbol.endswith('TRY'):
         return symbol[:-3] + '-TRY'
-    if symbol.endswith('USD'):
-        return symbol[:-3] + '-USD'
+    if symbol.endswith('FDUSD'):
+        return symbol[:-5] + '-FDUSD'
+    if symbol.endswith('TUSD'):
+        return symbol[:-4] + '-TUSD'
     if symbol.endswith('UST'):
         return symbol[:-3] + '-UST'
     if symbol.endswith('USDT'):
@@ -146,12 +149,22 @@ def dashy_symbol(symbol: str) -> str:
         return symbol[:-4] + '-USDP'
     if symbol.endswith('USDU'):
         return symbol[:-4] + '-USDU'
+    if symbol.endswith('USD'):
+        return symbol[:-3] + '-USD'
 
     if len(symbol) > 7 and symbol.endswith('SUSDT'):
         # ex: SETHSUSDT => SETH-SUSDT
         return symbol[:-5] + '-' + symbol[-5:]
 
     return f"{symbol[0:3]}-{symbol[3:]}"
+
+
+def underline_to_dashy_symbol(symbol: str) -> str:
+    return symbol.replace('_', '-')
+
+
+def dashy_to_underline(symbol: str) -> str:
+    return symbol.replace('-', '_')
 
 
 def date_diff_in_days(date1: arrow.arrow.Arrow, date2: arrow.arrow.Arrow) -> int:
@@ -379,7 +392,10 @@ def is_collecting_data() -> bool:
 
 def is_debuggable(debug_item) -> bool:
     from jesse.config import config
-    return is_debugging() and config['env']['logging'][debug_item]
+    try:
+        return is_debugging() and config['env']['logging'][debug_item]
+    except KeyError:
+        return True
 
 
 def is_debugging() -> bool:
@@ -395,10 +411,12 @@ def is_importing_candles() -> bool:
 def is_live() -> bool:
     return is_livetrading() or is_paper_trading()
 
+
 @lru_cache
 def is_livetrading() -> bool:
     from jesse.config import config
     return config['app']['trading_mode'] == 'livetrade'
+
 
 @lru_cache
 def is_optimizing() -> bool:
@@ -552,6 +570,7 @@ def opposite_side(s: str) -> str:
         return sides.BUY
     else:
         raise ValueError(f'{s} is not a valid input for side')
+
 
 @lru_cache
 def opposite_type(t: str) -> str:
@@ -739,6 +758,7 @@ def secure_hash(msg: str) -> str:
 def should_execute_silently() -> bool:
     return is_optimizing() or is_unit_testing()
 
+
 @lru_cache
 def side_to_type(s: str) -> str:
     from jesse.enums import trade_types, sides
@@ -804,6 +824,7 @@ def _print_error(msg: str) -> None:
     print(color('========== critical error =========='.upper(), 'red'))
     print(color(msg, 'red'))
     print(color('====================================', 'red'))
+
 
 @lru_cache
 def timeframe_to_one_minutes(timeframe: str) -> int:
@@ -1005,7 +1026,7 @@ def str_or_none(item, encoding='utf-8'):
         if isinstance(item, str):
             return item
 
-        if type(item) == numpy.float64:
+        if type(item) == np.float64:
             return str(item)
 
         try:
@@ -1085,12 +1106,18 @@ def get_candle_start_timestamp_based_on_timeframe(timeframe: str, num_candles_to
     return finish_date - (num_candles_to_fetch * one_min_count * 60_000)
 
 
-def is_price_near(order_price, price_to_compare, percentage_threshold=0.0001):
+def is_price_near(order_price, price_to_compare, percentage_threshold=0.00015):
     """
     Check if the given order price is near the specified price.
-    Default percentage_threshold is 0.01% (0.0001)
+    Default percentage_threshold is 0.015% (0.00015)
     We calculate percentage difference between the two prices rounded to 4 decimal places, 
-    so low-priced orders can be properly compared within 0.01% range.
+    so low-priced orders can be properly compared within 0.015% range.
     """
-    return round(abs(1 - (order_price / price_to_compare)), 4) <= percentage_threshold
+    return abs(1 - (order_price / price_to_compare)) <= percentage_threshold
 
+
+def gzip_compress(data):
+    """Compress data using gzip."""
+    json_data = json.dumps(data).encode('utf-8')
+    # Compress the JSON string
+    return gzip.compress(json_data)

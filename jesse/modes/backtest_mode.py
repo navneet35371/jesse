@@ -135,11 +135,11 @@ def _execute_backtest(
         sync_publish('routes_info', stats.routes(router.routes))
 
     # run backtest simulation
+    result = None
     try:
         result = simulator(
             candles,
             run_silently=jh.should_execute_silently(),
-            generate_charts=chart,
             generate_tradingview=tradingview,
             generate_quantstats=full_reports,
             generate_csv=csv,
@@ -183,11 +183,106 @@ def _execute_backtest(
         })
         sync_publish('hyperparameters', result['hyperparameters'])
         sync_publish('metrics', result['metrics'])
-        sync_publish('equity_curve', result['equity_curve'])
+        sync_publish('equity_curve', result['equity_curve'], compression=True)
+        if chart:
+            sync_publish('candles_chart', _get_formatted_candles_for_frontend(), compression=True)
+            sync_publish('orders_chart', _get_formatted_orders_for_frontend(), compression=True)
+            sync_publish('add_line_to_candle_chart', _get_add_line_to_candle_chart(), compression=True)
+            sync_publish('add_extra_line_chart', _get_add_extra_line_chart(), compression=True)
+            sync_publish('add_horizontal_line_to_candle_chart', _get_add_horizontal_line_to_candle_chart(), compression=True)
+            sync_publish('add_horizontal_line_to_extra_chart', _get_add_horizontal_line_to_extra_chart(), compression=True)
 
     # close database connection
     from jesse.services.db import database
     database.close_connection()
+
+
+def _get_formatted_candles_for_frontend():
+    arr = []
+    for r in router.routes:
+        candles_arr = store.candles.get_candles(r.exchange, r.symbol, r.timeframe)
+        # Find the index where the starting time actually begins.
+        starting_index = 0
+        for i, c in enumerate(candles_arr):
+            if c[0] >= store.app.starting_time:
+                starting_index = i
+                break
+
+        candles = [{
+            'time': int(c[0]/1000),
+            'open': c[1],
+            'close': c[2],
+            'high': c[3],
+            'low': c[4],
+            'volume': c[5]
+        } for c in candles_arr[starting_index:]]
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'candles': candles
+        })
+    return arr
+
+
+def _get_formatted_orders_for_frontend():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'orders': r.strategy._executed_orders
+        })
+    return arr
+
+
+def _get_add_line_to_candle_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_line_to_candle_chart_values
+        })
+    return arr
+
+
+def _get_add_extra_line_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'charts': r.strategy._add_extra_line_chart_values
+        })
+    return arr
+
+
+def _get_add_horizontal_line_to_candle_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_horizontal_line_to_candle_chart_values
+        })
+    return arr
+
+
+def _get_add_horizontal_line_to_extra_chart():
+    arr = []
+    for r in router.routes:
+        arr.append({
+            'exchange': r.exchange,
+            'symbol': r.symbol,
+            'timeframe': r.timeframe,
+            'lines': r.strategy._add_horizontal_line_to_extra_chart_values
+        })
+    return arr
 
 
 def _generate_quantstats_report(candles_dict: dict) -> str:
@@ -275,7 +370,6 @@ def _step_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -387,7 +481,6 @@ def _step_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -435,8 +528,8 @@ def _prepare_routes(hyperparameters: dict = None) -> None:
             r.strategy = StrategyClass()
         except TypeError:
             raise exceptions.InvalidStrategy(
-                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(), and should_cancel_entry(). "
-                "\nIf you need working examples, check out: https://github.com/jesse-ai/example-strategies"
+                "Looks like the structure of your strategy directory is incorrect. Make sure to include the strategy INSIDE the __init__.py file. Another reason for this error might be that your strategy is missing the mandatory methods such as should_long(), go_long(). "
+                "\nIf you need working examples, check out: https://jesse.trade/strategies"
             )
         except:
             raise
@@ -551,7 +644,10 @@ def _simulate_price_change_effect(real_candle: np.ndarray, exchange: str, symbol
                     executed_order = True
 
                     order.execute()
-                    executing_orders = _get_executing_orders(exchange, symbol, real_candle)
+                    executing_orders = _get_executing_orders(exchange, symbol, current_temp_candle)
+                    if len(executing_orders) > 1:
+                        # extend the candle shape from (6,) to (1,6)
+                        executing_orders = _sort_execution_orders(executing_orders, current_temp_candle[None, :])
 
                     # break from the for loop, we'll try again inside the while
                     # loop with the new current_temp_candle
@@ -610,7 +706,6 @@ def _check_for_liquidations(candle: np.ndarray, exchange: str, symbol: str) -> N
 
 def _generate_outputs(
         candles: dict,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -632,8 +727,6 @@ def _generate_outputs(
         result["tradingview"] = logs_path["tradingview"]
     if generate_csv:
         result["csv"] = logs_path["csv"]
-    if generate_charts:
-        result["charts"] = charts.portfolio_vs_asset_returns(_get_study_name())
     if generate_equity_curve:
         result["equity_curve"] = charts.equity_curve(benchmark)
     if generate_quantstats:
@@ -647,7 +740,6 @@ def _skip_simulator(
         candles: dict,
         run_silently: bool,
         hyperparameters: dict = None,
-        generate_charts: bool = False,
         generate_tradingview: bool = False,
         generate_quantstats: bool = False,
         generate_csv: bool = False,
@@ -678,7 +770,8 @@ def _skip_simulator(
         # store.app.time = first_candles_set[i][0] + (60_000 * candles_step)
         _simulate_new_candles(candles, i, candles_step)
 
-        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step, last_update_time=last_update_time)
+        last_update_time = _update_progress_bar(progressbar, run_silently, i, candles_step,
+                                                last_update_time=last_update_time)
 
         _execute_routes(i, candles_step)
 
@@ -708,7 +801,6 @@ def _skip_simulator(
 
     result = _generate_outputs(
         candles,
-        generate_charts=generate_charts,
         generate_tradingview=generate_tradingview,
         generate_quantstats=generate_quantstats,
         generate_csv=generate_csv,
@@ -798,6 +890,9 @@ def _simulate_price_change_effect_multiple_candles(
 
         for i in range(len(short_timeframes_candles)):
             current_temp_candle = short_timeframes_candles[i].copy()
+            if i > 0:
+                current_temp_candle[3] = max(current_temp_candle[3], short_timeframes_candles[i-1, 2])
+                current_temp_candle[4] = min(current_temp_candle[4], short_timeframes_candles[i-1, 2])
             is_executed_order = False
 
             while True:
@@ -865,16 +960,13 @@ def _simulate_price_change_effect_multiple_candles(
 
 
 def _update_all_routes_a_partial_candle(
-    exchange: str,
-    symbol: str,
-    storable_temp_candle: np.ndarray,
+        exchange: str,
+        symbol: str,
+        storable_temp_candle: np.ndarray,
 ) -> None:
     """
     This function get called when an order is getting executed you need to update the other timeframe how their last
     candles looks like
-    Args:
-        short_timeframes_candles: 1m candles until storable_temp_candle
-        storable_temp_candle: storable_temp_candle the last 1m candle but not yet closed
     """
     store.candles.add_candle(
         storable_temp_candle,
@@ -956,13 +1048,23 @@ def _sort_execution_orders(orders: List[Order], short_candles: np.ndarray):
             sorted_orders.append(included_orders[0])
         elif len(included_orders) > 1:
             # in case that the orders are above
-
-            # note: check the first is enough because I can assume all the orders in the same direction of the price,
-            # in case it doesn't than i cant really know how the price react in this 1 minute candle..
-            if short_candles[i, 3] > included_orders[0].price > short_candles[i, 1]:
-                sorted_orders += sorted(included_orders, key=lambda o: o.price)
+            is_red = short_candles[i, 1] > short_candles[i, 2]
+            above_open, on_open, below_open = [], [], []
+            open_price = short_candles[i, 1]
+            for order in included_orders:
+                if order.price == open_price:
+                    on_open.append(order)
+                if order.price > open_price:
+                    above_open.append(order)
+                else:
+                    below_open.append(order)
+            sorted_orders += on_open
+            if is_red:
+                # heuristic that first the price goes up and then down, so this is the order execution sort
+                sorted_orders += sorted(above_open, key=lambda o: o.price) + sorted(below_open, key=lambda o: o.price, reverse=True)
             else:
-                sorted_orders += sorted(included_orders, key=lambda o: o.price, reverse=True)
+                sorted_orders += sorted(below_open, key=lambda o: o.price, reverse=True) + sorted(above_open, key=lambda o: o.price)
+
         if len(sorted_orders) == len(orders):
             break
     return sorted_orders

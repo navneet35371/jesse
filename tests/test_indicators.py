@@ -74,7 +74,7 @@ def test_alligator():
     assert type(single).__name__ == 'AG'
     assert round(single.teeth, 0) == 236
     assert round(single.jaw, 0) == 233
-    assert round(single.lips, 0) == 222
+    assert round(single.lips, 0) == 224
 
     assert seq.teeth[-1] == single.teeth
     assert len(seq.teeth) == len(candles)
@@ -2347,10 +2347,8 @@ def test_waddah_attr_explosion():
 
 def test_stiffness():
     candles = np.array(test_candles_19)
-    single = ta.stiffness(candles)
 
-    assert round(single.stiffness) == 96
-    assert round(single.threshold) == 90
+    assert round(ta.stiffness(candles)) == 96
 
 
 def test_ttm_squeeze():

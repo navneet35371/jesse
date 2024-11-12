@@ -15,6 +15,7 @@ from jesse.services.broker import Broker
 from jesse.store import store
 from jesse.services.cache import cached
 from jesse.services import notifier
+from jesse.services.color import generate_unique_hex_color
 
 
 class Strategy(ABC):
@@ -52,6 +53,12 @@ class Strategy(ABC):
         self.trade: ClosedTrade = None
         self.trades_count = 0
 
+        self._executed_orders = []
+        self._add_line_to_candle_chart_values = {}
+        self._add_extra_line_chart_values = {}
+        self._add_horizontal_line_to_candle_chart_values = {}
+        self._add_horizontal_line_to_extra_chart_values = {}
+
         self._is_executing = False
         self._is_initiated = False
         self._is_handling_updated_order = False
@@ -61,6 +68,93 @@ class Strategy(ABC):
 
         self._cached_methods = {}
         self._cached_metrics = {}
+
+    def add_line_to_candle_chart(self, title: str, value: float, color=None) -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if title not in self._add_line_to_candle_chart_values:
+            self._add_line_to_candle_chart_values[title] = {
+                'data': [],
+                'color': color if color is not None else generate_unique_hex_color(),
+            }
+        self._add_line_to_candle_chart_values[title]['data'].append({
+            'time': int(self.current_candle[0] / 1000),
+            'value': value,
+            'color': color if color is not None else (self._add_line_to_candle_chart_values[title]['color'])
+        })
+
+    def add_horizontal_line_to_candle_chart(self, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if line_style == 'solid':
+            lineStyle = 0
+        elif line_style == 'dotted':
+            lineStyle = 1
+        else:
+            raise ValueError(f"Invalid line_style: {line_style}")
+
+        if title in self._add_horizontal_line_to_candle_chart_values:
+            self._add_horizontal_line_to_candle_chart_values[title].update({
+                'price': value,
+                'color': color if color is not None else self._add_horizontal_line_to_candle_chart_values[title]['color'],
+                'lineWidth': line_width,
+                'lineStyle': lineStyle,
+            })
+        else:
+            self._add_horizontal_line_to_candle_chart_values[title] = {
+                'title': title,
+                'price': value,
+                'color': color if color is not None else generate_unique_hex_color(),
+                'lineWidth': line_width,
+                'lineStyle': lineStyle,
+            }
+
+    def add_horizontal_line_to_extra_chart(self, chart_name: str, title: str, value: float, color=None, line_width=1.5, line_style='solid') -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if line_style == 'solid':
+            lineStyle = 0
+        elif line_style == 'dotted':
+            lineStyle = 1
+        else:
+            raise ValueError(f"Invalid line_style: {line_style}")
+
+        if chart_name not in self._add_horizontal_line_to_extra_chart_values:
+            self._add_horizontal_line_to_extra_chart_values[chart_name] = {}
+
+        self._add_horizontal_line_to_extra_chart_values[chart_name][title] = {
+            'price': value,
+            'color': color if color is not None else generate_unique_hex_color(),
+            'lineWidth': line_width,
+            'lineStyle': lineStyle,
+            'title': title
+        }
+
+    def add_extra_line_chart(self, chart_name: str, title: str, value: float, color=None) -> None:
+        # validate value's type
+        if not isinstance(value, (int, float)):
+            raise ValueError(f"Invalid value type: {type(value)}. The value must be either int or float; you're passing {value}")
+
+        if chart_name not in self._add_extra_line_chart_values:
+            self._add_extra_line_chart_values[chart_name] = {}
+
+        if title not in self._add_extra_line_chart_values[chart_name]:
+            self._add_extra_line_chart_values[chart_name][title] = {
+                'data': [],
+                'color': color if color is not None else generate_unique_hex_color(),
+            }
+
+        self._add_extra_line_chart_values[chart_name][title]['data'].append({
+            'time': int(self.current_candle[0] / 1000),
+            'value': value,
+            'color': color if color is not None else (self._add_extra_line_chart_values[chart_name][title]['color'])
+        })
 
     def _init_objects(self) -> None:
         """
@@ -116,6 +210,25 @@ class Strategy(ABC):
 
             r.strategy._detect_and_handle_entry_and_exit_modifications()
 
+    def _handle_executed_order_for_chart(self, order: Order):
+        position_type = ''
+        if self.position.is_long:
+            position_type = 'LONG'
+        elif self.position.is_short:
+            position_type = 'SHORT'
+        elif self.position.is_close and self.position.previous_qty > 0:
+            position_type = 'LONG'
+        elif self.position.is_close and self.position.previous_qty < 0:
+            position_type = 'SHORT'
+
+        self._executed_orders.append({
+            'time': int(self.current_candle[0] / 1000),
+            'position': 'aboveBar' if order.side == sides.SELL else 'belowBar',
+            'color': '#e91e63' if order.side == sides.SELL else '#2196F3',
+            'shape': 'arrowDown' if order.side == sides.SELL else 'arrowUp',
+            'text': f'{order.side.upper()} • {position_type}'
+        })
+
     def _on_updated_position(self, order: Order) -> None:
         """
         Handles the after-effect of the executed order to execute strategy
@@ -124,6 +237,8 @@ class Strategy(ABC):
         """
         # in live-mode, sometimes order-update effects and new execution has overlaps, so:
         self._is_handling_updated_order = True
+
+        self._handle_executed_order_for_chart(order)
 
         # this is the last executed order, and had its effect on
         # the position. We need to know what its effect was:
@@ -441,9 +556,12 @@ class Strategy(ABC):
     def should_short(self) -> bool:
         return False
 
-    @abstractmethod
     def should_cancel_entry(self) -> bool:
-        pass
+        """
+        Whether to cancel the active  entry orders or not. By default, it will cancel the
+        entry orders when a new candle is formed and the position is still not open.
+        """
+        return True
 
     def before(self) -> None:
         """

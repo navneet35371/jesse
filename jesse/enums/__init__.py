@@ -65,7 +65,7 @@ class exchanges:
     BYBIT_USDT_PERPETUAL = 'Bybit USDT Perpetual'
     BYBIT_USDC_PERPETUAL = 'Bybit USDC Perpetual'
     BYBIT_USDT_PERPETUAL_TESTNET = 'Bybit USDT Perpetual Testnet'
-    BYBIT_USDC_PERPETUAL_TESTNET= 'Bybit USDC Perpetual Testnet'
+    BYBIT_USDC_PERPETUAL_TESTNET = 'Bybit USDC Perpetual Testnet'
     BYBIT_SPOT = 'Bybit Spot'
     BYBIT_SPOT_TESTNET = 'Bybit Spot Testnet'
     FTX_PERPETUAL_FUTURES = 'FTX Perpetual Futures'
@@ -81,6 +81,11 @@ class exchanges:
     
     UPSTOX_SPOT = "Upstox spot"
     KITE_SPOT = "Kite spot"
+    
+    APEX_OMNI_PERPETUAL_TESTNET = 'Apex Omni Perpetual Testnet'
+    APEX_OMNI_PERPETUAL = 'Apex Omni Perpetual'
+    GATE_USDT_PERPETUAL = 'Gate USDT Perpetual'
+    GATE_SPOT = 'Gate Spot'
 
 
 class migration_actions:
